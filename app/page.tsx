@@ -196,9 +196,9 @@ export default function Home() {
                 {/* Product information */}
                 <div className="p-6">
 
-                  {product.categories && (
+                  {product.categories?.[0] && (
                     <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                      {product.categories.name}
+                      {product.categories[0].name}
                     </p>
                   )}
 

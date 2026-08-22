@@ -15,7 +15,7 @@ type Product = {
   is_diy: boolean
   categories: {
     name: string
-  } | null
+  } []
 }
 
 export default function Home() {

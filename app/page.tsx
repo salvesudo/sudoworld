@@ -1,15 +1,35 @@
-export default function Home() {
-  return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold">
-          SudoWorld
-        </h1>
+'use client'
 
-        <p className="mt-4 text-gray-600">
-          Welcome to SudoWorld
-        </p>
-      </div>
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+
+export default function Home() {
+  const [message, setMessage] = useState('Connecting to Supabase...')
+
+  useEffect(() => {
+    async function testSupabase() {
+      const { data, error } = await supabase
+        .from('test_connection')
+        .select('*')
+        .limit(1)
+
+      if (error) {
+        console.error(error)
+        setMessage(`Supabase error: ${error.message}`)
+        return
+      }
+
+      setMessage(data?.[0]?.message ?? 'Connected, but no data found.')
+    }
+
+    testSupabase()
+  }, [])
+
+  return (
+    <main style={{ padding: '40px' }}>
+      <h1>SudoWorld</h1>
+
+      <p>{message}</p>
     </main>
   )
 }

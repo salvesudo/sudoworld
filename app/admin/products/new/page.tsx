@@ -222,7 +222,7 @@ export default function AddProductPage() {
     return Object.keys(nextErrors).length === 0
   }
 
-  function getSupabaseErrorMessage(err: any): string {
+  function getSupabaseErrorMessage(err: unknown): string {
     if (!err) {
       return 'Something went wrong while creating the product.'
     }
@@ -231,26 +231,26 @@ export default function AddProductPage() {
       return err
     }
 
-    if (err.message) {
-      return err.message
-    }
-
-    if (err.details) {
-      return err.details
-    }
-
-    if (err.hint) {
-      return err.hint
-    }
-
-    try {
-      const serialized = JSON.stringify(err)
-
-      if (serialized && serialized !== '{}') {
-        return serialized
+    if (typeof err === 'object') {
+      const { message, details, hint } = err as {
+        message?: string
+        details?: string
+        hint?: string
       }
-    } catch {
-      // Ignore JSON serialization errors.
+
+      if (message) return message
+      if (details) return details
+      if (hint) return hint
+
+      try {
+        const serialized = JSON.stringify(err)
+
+        if (serialized && serialized !== '{}') {
+          return serialized
+        }
+      } catch {
+        // Ignore JSON serialization errors.
+      }
     }
 
     return 'Something went wrong while creating the product. Check the browser console for details.'
@@ -379,7 +379,7 @@ export default function AddProductPage() {
       setTimeout(() => {
         router.push('/admin/products')
       }, 1200)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('========== PRODUCT CREATION FAILED ==========')
       console.error('Raw error:', err)
       console.error('Error type:', typeof err)
@@ -393,10 +393,15 @@ export default function AddProductPage() {
         console.error('Could not serialize error.')
       }
 
-      console.error('Error code:', err?.code)
-      console.error('Error message:', err?.message)
-      console.error('Error details:', err?.details)
-      console.error('Error hint:', err?.hint)
+      const errObj =
+        typeof err === 'object' && err
+          ? (err as { code?: string; message?: string; details?: string; hint?: string })
+          : undefined
+
+      console.error('Error code:', errObj?.code)
+      console.error('Error message:', errObj?.message)
+      console.error('Error details:', errObj?.details)
+      console.error('Error hint:', errObj?.hint)
       console.error('============================================')
 
       const message = getSupabaseErrorMessage(err)

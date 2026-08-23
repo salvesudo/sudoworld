@@ -25,18 +25,26 @@ type CategoryOption = {
 type StockFilter = 'all' | 'in_stock' | 'out_of_stock'
 type ActiveFilter = 'all' | 'active' | 'inactive'
 
-function getSupabaseErrorMessage(err: any): string {
+function getSupabaseErrorMessage(err: unknown): string {
   if (!err) return 'Something went wrong.'
   if (typeof err === 'string') return err
-  if (err.message) return err.message
-  if (err.details) return err.details
-  if (err.hint) return err.hint
 
-  try {
-    const serialized = JSON.stringify(err)
-    if (serialized && serialized !== '{}') return serialized
-  } catch {
-    // Ignore JSON serialization errors.
+  if (typeof err === 'object') {
+    const { message, details, hint } = err as {
+      message?: string
+      details?: string
+      hint?: string
+    }
+    if (message) return message
+    if (details) return details
+    if (hint) return hint
+
+    try {
+      const serialized = JSON.stringify(err)
+      if (serialized && serialized !== '{}') return serialized
+    } catch {
+      // Ignore JSON serialization errors.
+    }
   }
 
   return 'Something went wrong. Check the browser console for details.'
@@ -108,7 +116,7 @@ export default function AdminProductsPage() {
         return
       }
 
-      setProducts((productsRes.data ?? []) as Product[])
+      setProducts((productsRes.data ?? []) as unknown as Product[])
       setCategories((categoriesRes.data ?? []) as CategoryOption[])
       setLoading(false)
     }

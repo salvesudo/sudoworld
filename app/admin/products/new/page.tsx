@@ -30,8 +30,6 @@ async function generateUniqueSlug(name: string) {
   let candidate = baseSlug
   let suffix = 2
 
-  // Bounded search for a free slug before falling back to a timestamp
-  // suffix, so heavy collisions can't loop forever.
   for (let attempt = 0; attempt < 25; attempt++) {
     const { data, error } = await supabase
       .from('products')
@@ -40,8 +38,20 @@ async function generateUniqueSlug(name: string) {
       .limit(1)
       .maybeSingle()
 
-    if (error) throw error
-    if (!data) return candidate
+    if (error) {
+      console.error('Slug lookup failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+
+      throw error
+    }
+
+    if (!data) {
+      return candidate
+    }
 
     candidate = `${baseSlug}-${suffix}`
     suffix += 1
@@ -89,7 +99,9 @@ export default function AddProductPage() {
   const [height, setHeight] = useState('')
 
   // Specifications
-  const [specs, setSpecs] = useState<SpecRow[]>([{ key: '', value: '' }])
+  const [specs, setSpecs] = useState<SpecRow[]>([
+    { key: '', value: '' },
+  ])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
@@ -98,14 +110,24 @@ export default function AddProductPage() {
 
   useEffect(() => {
     async function loadCategories() {
+      setCategoriesError('')
+
       const { data, error } = await supabase
         .from('categories')
         .select('id, name')
         .order('name')
 
       if (error) {
-        console.error('Supabase error:', error)
-        setCategoriesError(error.message)
+        console.error('Categories Supabase error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+
+        setCategoriesError(
+          error.message || 'Unable to load categories.'
+        )
         return
       }
 
@@ -115,14 +137,31 @@ export default function AddProductPage() {
     loadCategories()
   }, [])
 
-  function updateSpecRow(index: number, field: 'key' | 'value', value: string) {
+  function updateSpecRow(
+    index: number,
+    field: 'key' | 'value',
+    value: string
+  ) {
     setSpecs((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row
+      )
     )
   }
 
   function addSpecRow() {
-    setSpecs((prev) => [...prev, { key: '', value: '' }])
+    setSpecs((prev) => [
+      ...prev,
+      {
+        key: '',
+        value: '',
+      },
+    ])
   }
 
   function removeSpecRow(index: number) {
@@ -132,18 +171,40 @@ export default function AddProductPage() {
   function validate() {
     const nextErrors: Record<string, string> = {}
 
-    if (!name.trim()) nextErrors.name = 'Product name is required.'
-    if (!categoryId) nextErrors.categoryId = 'Please select a category.'
-    if (!productType) nextErrors.productType = 'Please select a product type.'
+    if (!name.trim()) {
+      nextErrors.name = 'Product name is required.'
+    }
+
+    if (!categoryId) {
+      nextErrors.categoryId = 'Please select a category.'
+    } else if (
+      !Number.isInteger(Number(categoryId)) ||
+      Number(categoryId) <= 0
+    ) {
+      nextErrors.categoryId = 'Please select a valid category.'
+    }
+
+    if (!productType) {
+      nextErrors.productType = 'Please select a product type.'
+    }
 
     if (!price.trim()) {
       nextErrors.price = 'Price is required.'
-    } else if (Number.isNaN(Number(price)) || Number(price) < 0) {
+    } else if (
+      Number.isNaN(Number(price)) ||
+      Number(price) < 0
+    ) {
       nextErrors.price = 'Price must be a valid positive number.'
     }
 
-    if (compareAtPrice.trim() && Number.isNaN(Number(compareAtPrice))) {
-      nextErrors.compareAtPrice = 'Compare-at price must be a valid number.'
+    if (compareAtPrice.trim()) {
+      if (
+        Number.isNaN(Number(compareAtPrice)) ||
+        Number(compareAtPrice) < 0
+      ) {
+        nextErrors.compareAtPrice =
+          'Compare-at price must be a valid number.'
+      }
     }
 
     if (!stockQuantity.trim()) {
@@ -152,96 +213,214 @@ export default function AddProductPage() {
       !Number.isInteger(Number(stockQuantity)) ||
       Number(stockQuantity) < 0
     ) {
-      nextErrors.stockQuantity = 'Stock quantity must be a whole number, 0 or more.'
+      nextErrors.stockQuantity =
+        'Stock quantity must be a whole number, 0 or more.'
     }
 
     setErrors(nextErrors)
+
     return Object.keys(nextErrors).length === 0
+  }
+
+  function getSupabaseErrorMessage(err: any): string {
+    if (!err) {
+      return 'Something went wrong while creating the product.'
+    }
+
+    if (typeof err === 'string') {
+      return err
+    }
+
+    if (err.message) {
+      return err.message
+    }
+
+    if (err.details) {
+      return err.details
+    }
+
+    if (err.hint) {
+      return err.hint
+    }
+
+    try {
+      const serialized = JSON.stringify(err)
+
+      if (serialized && serialized !== '{}') {
+        return serialized
+      }
+    } catch {
+      // Ignore JSON serialization errors.
+    }
+
+    return 'Something went wrong while creating the product. Check the browser console for details.'
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    // Guards against double-submit (double click, double Enter).
-    if (isSubmitting) return
+    if (isSubmitting) {
+      return
+    }
 
     setFormError('')
     setSuccessMessage('')
 
-    if (!validate()) return
+    if (!validate()) {
+      return
+    }
 
     setIsSubmitting(true)
 
     try {
+      /*
+       * Generate a unique slug before inserting the product.
+       */
       const slug = await generateUniqueSlug(name)
 
+      /*
+       * Convert specification rows into a JSON object.
+       */
       const specifications = specs.reduce<Record<string, string>>(
         (acc, row) => {
           const key = row.key.trim()
           const value = row.value.trim()
-          if (key) acc[key] = value
+
+          if (key) {
+            acc[key] = value
+          }
+
           return acc
         },
         {}
       )
 
-      const { error } = await supabase.from('products').insert({
+      /*
+       * Build the product object separately.
+       * This makes it much easier to inspect the exact payload
+       * being sent to Supabase.
+       */
+      const productData = {
         name: name.trim(),
         slug,
         sku: sku.trim() || null,
         short_description: shortDescription.trim() || null,
         description: description.trim() || null,
+
         price: Number(price),
-        compare_at_price: compareAtPrice.trim() ? Number(compareAtPrice) : null,
+
+        compare_at_price: compareAtPrice.trim()
+          ? Number(compareAtPrice)
+          : null,
+
         stock_quantity: Number(stockQuantity),
+
         category_id: Number(categoryId),
+
         product_type: productType,
+
         is_handmade: isHandmade,
         is_customizable: isCustomizable,
         is_diy: isDiy,
         is_featured: isFeatured,
         is_active: isActive,
-        weight: weight.trim() ? Number(weight) : null,
-        length: length.trim() ? Number(length) : null,
-        width: width.trim() ? Number(width) : null,
-        height: height.trim() ? Number(height) : null,
+
+        weight: weight.trim()
+          ? Number(weight)
+          : null,
+
+        length: length.trim()
+          ? Number(length)
+          : null,
+
+        width: width.trim()
+          ? Number(width)
+          : null,
+
+        height: height.trim()
+          ? Number(height)
+          : null,
+
         specifications,
-      })
+      }
 
-      if (error) throw error
+      /*
+       * IMPORTANT:
+       * Do not hide the Supabase error.
+       */
+      const { data, error } = await supabase
+        .from('products')
+        .insert(productData)
+        .select()
+        .single()
 
-      setSuccessMessage('Product created successfully. Redirecting...')
+      if (error) {
+        console.error('========== SUPABASE PRODUCT ERROR ==========')
+        console.error('Code:', error.code)
+        console.error('Message:', error.message)
+        console.error('Details:', error.details)
+        console.error('Hint:', error.hint)
+        console.error('Full error:', error)
+        console.error(
+          'Error JSON:',
+          JSON.stringify(error, null, 2)
+        )
+        console.error('============================================')
+
+        throw error
+      }
+
+      console.log('Product created successfully:', data)
+
+      setSuccessMessage(
+        'Product created successfully. Redirecting...'
+      )
+
       setTimeout(() => {
         router.push('/admin/products')
       }, 1200)
     } catch (err: any) {
-      console.error('Supabase error:', err)
-      console.error('Error JSON:', JSON.stringify(err, null, 2))
+      console.error('========== PRODUCT CREATION FAILED ==========')
+      console.error('Raw error:', err)
+      console.error('Error type:', typeof err)
+
+      try {
+        console.error(
+          'Error JSON:',
+          JSON.stringify(err, null, 2)
+        )
+      } catch {
+        console.error('Could not serialize error.')
+      }
+
+      console.error('Error code:', err?.code)
       console.error('Error message:', err?.message)
       console.error('Error details:', err?.details)
       console.error('Error hint:', err?.hint)
-      console.error('Error code:', err?.code)
+      console.error('============================================')
 
-      const message =
-        err?.message ||
-        err?.details ||
-        'Something went wrong. Please check the browser console.'
+      const message = getSupabaseErrorMessage(err)
 
       setFormError(message)
+    } finally {
       setIsSubmitting(false)
     }
   }
 
   const fieldClass =
     'w-full rounded-lg border px-4 py-2.5 text-sm outline-none focus:border-black'
-  const labelClass = 'mb-1 block text-sm font-medium text-gray-700'
-  const sectionClass = 'rounded-2xl border bg-white p-6 shadow-sm'
+
+  const labelClass =
+    'mb-1 block text-sm font-medium text-gray-700'
+
+  const sectionClass =
+    'rounded-2xl border bg-white p-6 shadow-sm'
+
   const sectionTitleClass =
     'mb-4 text-xs font-semibold uppercase tracking-widest text-gray-500'
 
   return (
     <div className="mx-auto max-w-3xl">
-
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Add Product
@@ -254,7 +433,13 @@ export default function AddProductPage() {
 
       {formError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {formError}
+          <div className="font-semibold">
+            Could not create product
+          </div>
+
+          <div className="mt-1 whitespace-pre-wrap">
+            {formError}
+          </div>
         </div>
       )}
 
@@ -264,13 +449,20 @@ export default function AddProductPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6"
+      >
         {/* CATEGORY */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Category</p>
+          <p className={sectionTitleClass}>
+            Category
+          </p>
 
-          <label htmlFor="categoryId" className={labelClass}>
+          <label
+            htmlFor="categoryId"
+            className={labelClass}
+          >
             Product category
           </label>
 
@@ -280,9 +472,15 @@ export default function AddProductPage() {
             onChange={(e) => setCategoryId(e.target.value)}
             className={fieldClass}
           >
-            <option value="">Select a category...</option>
+            <option value="">
+              Select a category...
+            </option>
+
             {categories.map((category) => (
-              <option key={category.id} value={String(category.id)}>
+              <option
+                key={category.id}
+                value={String(category.id)}
+              >
                 {category.name}
               </option>
             ))}
@@ -290,20 +488,29 @@ export default function AddProductPage() {
 
           {categoriesError && (
             <p className="mt-1 text-sm text-red-600">
-              Could not load categories: {categoriesError}
+              Could not load categories:{' '}
+              {categoriesError}
             </p>
           )}
+
           {errors.categoryId && (
-            <p className="mt-1 text-sm text-red-600">{errors.categoryId}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.categoryId}
+            </p>
           )}
         </div>
 
         {/* BASIC INFORMATION */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Basic information</p>
+          <p className={sectionTitleClass}>
+            Basic information
+          </p>
 
           <div className="mb-4">
-            <label htmlFor="name" className={labelClass}>
+            <label
+              htmlFor="name"
+              className={labelClass}
+            >
               Product name
             </label>
 
@@ -317,12 +524,17 @@ export default function AddProductPage() {
             />
 
             {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+              <p className="mt-1 text-sm text-red-600">
+                {errors.name}
+              </p>
             )}
           </div>
 
           <div className="mb-4">
-            <label htmlFor="sku" className={labelClass}>
+            <label
+              htmlFor="sku"
+              className={labelClass}
+            >
               SKU
             </label>
 
@@ -337,7 +549,10 @@ export default function AddProductPage() {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="shortDescription" className={labelClass}>
+            <label
+              htmlFor="shortDescription"
+              className={labelClass}
+            >
               Short description
             </label>
 
@@ -345,21 +560,28 @@ export default function AddProductPage() {
               id="shortDescription"
               type="text"
               value={shortDescription}
-              onChange={(e) => setShortDescription(e.target.value)}
+              onChange={(e) =>
+                setShortDescription(e.target.value)
+              }
               className={fieldClass}
               placeholder="A quick one-line summary shown on product cards."
             />
           </div>
 
           <div>
-            <label htmlFor="description" className={labelClass}>
+            <label
+              htmlFor="description"
+              className={labelClass}
+            >
               Description
             </label>
 
             <textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) =>
+                setDescription(e.target.value)
+              }
               rows={5}
               className={fieldClass}
               placeholder="Full product description..."
@@ -369,11 +591,16 @@ export default function AddProductPage() {
 
         {/* PRICING */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Pricing</p>
+          <p className={sectionTitleClass}>
+            Pricing
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="price" className={labelClass}>
+              <label
+                htmlFor="price"
+                className={labelClass}
+              >
                 Price
               </label>
 
@@ -389,12 +616,17 @@ export default function AddProductPage() {
               />
 
               {errors.price && (
-                <p className="mt-1 text-sm text-red-600">{errors.price}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.price}
+                </p>
               )}
             </div>
 
             <div>
-              <label htmlFor="compareAtPrice" className={labelClass}>
+              <label
+                htmlFor="compareAtPrice"
+                className={labelClass}
+              >
                 Compare-at price
               </label>
 
@@ -404,7 +636,9 @@ export default function AddProductPage() {
                 step="0.01"
                 min="0"
                 value={compareAtPrice}
-                onChange={(e) => setCompareAtPrice(e.target.value)}
+                onChange={(e) =>
+                  setCompareAtPrice(e.target.value)
+                }
                 className={fieldClass}
                 placeholder="0.00"
               />
@@ -420,9 +654,14 @@ export default function AddProductPage() {
 
         {/* INVENTORY */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Inventory</p>
+          <p className={sectionTitleClass}>
+            Inventory
+          </p>
 
-          <label htmlFor="stockQuantity" className={labelClass}>
+          <label
+            htmlFor="stockQuantity"
+            className={labelClass}
+          >
             Stock quantity
           </label>
 
@@ -432,7 +671,9 @@ export default function AddProductPage() {
             step="1"
             min="0"
             value={stockQuantity}
-            onChange={(e) => setStockQuantity(e.target.value)}
+            onChange={(e) =>
+              setStockQuantity(e.target.value)
+            }
             className={fieldClass}
             placeholder="0"
           />
@@ -446,43 +687,56 @@ export default function AddProductPage() {
 
         {/* PRODUCT TYPE */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Product type</p>
+          <p className={sectionTitleClass}>
+            Product type
+          </p>
 
           <div className="flex flex-wrap gap-6">
-            {(['physical', 'digital', 'service'] as ProductType[]).map(
-              (type) => (
-                <label
-                  key={type}
-                  className="flex items-center gap-2 text-sm text-gray-700"
-                >
-                  <input
-                    type="radio"
-                    name="productType"
-                    value={type}
-                    checked={productType === type}
-                    onChange={() => setProductType(type)}
-                  />
-                  <span className="capitalize">{type}</span>
-                </label>
-              )
-            )}
+            {(
+              ['physical', 'digital', 'service'] as ProductType[]
+            ).map((type) => (
+              <label
+                key={type}
+                className="flex items-center gap-2 text-sm text-gray-700"
+              >
+                <input
+                  type="radio"
+                  name="productType"
+                  value={type}
+                  checked={productType === type}
+                  onChange={() =>
+                    setProductType(type)
+                  }
+                />
+
+                <span className="capitalize">
+                  {type}
+                </span>
+              </label>
+            ))}
           </div>
 
           {errors.productType && (
-            <p className="mt-2 text-sm text-red-600">{errors.productType}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {errors.productType}
+            </p>
           )}
         </div>
 
         {/* ATTRIBUTES */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Attributes</p>
+          <p className={sectionTitleClass}>
+            Attributes
+          </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
                 checked={isHandmade}
-                onChange={(e) => setIsHandmade(e.target.checked)}
+                onChange={(e) =>
+                  setIsHandmade(e.target.checked)
+                }
               />
               Handmade
             </label>
@@ -491,7 +745,9 @@ export default function AddProductPage() {
               <input
                 type="checkbox"
                 checked={isCustomizable}
-                onChange={(e) => setIsCustomizable(e.target.checked)}
+                onChange={(e) =>
+                  setIsCustomizable(e.target.checked)
+                }
               />
               Customizable
             </label>
@@ -500,7 +756,9 @@ export default function AddProductPage() {
               <input
                 type="checkbox"
                 checked={isDiy}
-                onChange={(e) => setIsDiy(e.target.checked)}
+                onChange={(e) =>
+                  setIsDiy(e.target.checked)
+                }
               />
               DIY
             </label>
@@ -509,7 +767,9 @@ export default function AddProductPage() {
               <input
                 type="checkbox"
                 checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
+                onChange={(e) =>
+                  setIsFeatured(e.target.checked)
+                }
               />
               Featured
             </label>
@@ -518,7 +778,9 @@ export default function AddProductPage() {
               <input
                 type="checkbox"
                 checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
+                onChange={(e) =>
+                  setIsActive(e.target.checked)
+                }
               />
               Active
             </label>
@@ -527,65 +789,91 @@ export default function AddProductPage() {
 
         {/* DIMENSIONS */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Dimensions</p>
+          <p className={sectionTitleClass}>
+            Dimensions
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label htmlFor="weight" className={labelClass}>
+              <label
+                htmlFor="weight"
+                className={labelClass}
+              >
                 Weight
               </label>
+
               <input
                 id="weight"
                 type="number"
                 step="0.01"
                 min="0"
                 value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                onChange={(e) =>
+                  setWeight(e.target.value)
+                }
                 className={fieldClass}
               />
             </div>
 
             <div>
-              <label htmlFor="length" className={labelClass}>
+              <label
+                htmlFor="length"
+                className={labelClass}
+              >
                 Length
               </label>
+
               <input
                 id="length"
                 type="number"
                 step="0.01"
                 min="0"
                 value={length}
-                onChange={(e) => setLength(e.target.value)}
+                onChange={(e) =>
+                  setLength(e.target.value)
+                }
                 className={fieldClass}
               />
             </div>
 
             <div>
-              <label htmlFor="width" className={labelClass}>
+              <label
+                htmlFor="width"
+                className={labelClass}
+              >
                 Width
               </label>
+
               <input
                 id="width"
                 type="number"
                 step="0.01"
                 min="0"
                 value={width}
-                onChange={(e) => setWidth(e.target.value)}
+                onChange={(e) =>
+                  setWidth(e.target.value)
+                }
                 className={fieldClass}
               />
             </div>
 
             <div>
-              <label htmlFor="height" className={labelClass}>
+              <label
+                htmlFor="height"
+                className={labelClass}
+              >
                 Height
               </label>
+
               <input
                 id="height"
                 type="number"
                 step="0.01"
                 min="0"
                 value={height}
-                onChange={(e) => setHeight(e.target.value)}
+                onChange={(e) =>
+                  setHeight(e.target.value)
+                }
                 className={fieldClass}
               />
             </div>
@@ -594,15 +882,26 @@ export default function AddProductPage() {
 
         {/* SPECIFICATIONS */}
         <div className={sectionClass}>
-          <p className={sectionTitleClass}>Specifications</p>
+          <p className={sectionTitleClass}>
+            Specifications
+          </p>
 
           <div className="space-y-3">
             {specs.map((row, index) => (
-              <div key={index} className="flex items-center gap-3">
+              <div
+                key={index}
+                className="flex items-center gap-3"
+              >
                 <input
                   type="text"
                   value={row.key}
-                  onChange={(e) => updateSpecRow(index, 'key', e.target.value)}
+                  onChange={(e) =>
+                    updateSpecRow(
+                      index,
+                      'key',
+                      e.target.value
+                    )
+                  }
                   placeholder="Material"
                   className={fieldClass}
                 />
@@ -610,14 +909,22 @@ export default function AddProductPage() {
                 <input
                   type="text"
                   value={row.value}
-                  onChange={(e) => updateSpecRow(index, 'value', e.target.value)}
+                  onChange={(e) =>
+                    updateSpecRow(
+                      index,
+                      'value',
+                      e.target.value
+                    )
+                  }
                   placeholder="Wood"
                   className={fieldClass}
                 />
 
                 <button
                   type="button"
-                  onClick={() => removeSpecRow(index)}
+                  onClick={() =>
+                    removeSpecRow(index)
+                  }
                   disabled={specs.length === 1}
                   className="shrink-0 rounded-lg px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-300"
                 >
@@ -650,9 +957,7 @@ export default function AddProductPage() {
               : 'Save Product'}
           </button>
         </div>
-
       </form>
-
     </div>
   )
 }

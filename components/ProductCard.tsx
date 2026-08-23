@@ -1,5 +1,8 @@
 'use client'
 
+import { useState } from 'react'
+import { useCart } from '@/components/CartProvider'
+
 export type ProductImage = {
   image_url: string
   alt_text: string | null
@@ -46,6 +49,25 @@ export function ProductCard({
   showCategory?: boolean
 }) {
   const primaryImage = getPrimaryImage(product)
+  const { addItem } = useCart()
+  const [justAdded, setJustAdded] = useState(false)
+
+  function handleAddToCart() {
+    addItem(
+      {
+        productId: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        imageUrl: primaryImage?.image_url ?? null,
+        stockQuantity: product.stock_quantity,
+      },
+      1
+    )
+
+    setJustAdded(true)
+    setTimeout(() => setJustAdded(false), 1200)
+  }
 
   return (
     <article className="overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-1 hover:shadow-lg">
@@ -124,10 +146,11 @@ export function ProductCard({
           </div>
 
           <button
+            onClick={handleAddToCart}
             disabled={product.stock_quantity <= 0}
             className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            Add to Cart
+            {justAdded ? 'Added ✓' : 'Add to Cart'}
           </button>
         </div>
       </div>

@@ -1,8 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { useCart } from '@/components/CartProvider'
 
 export function SiteHeader() {
+  const { totalItems } = useCart()
+
   return (
     <header className="border-b bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
@@ -20,9 +23,12 @@ export function SiteHeader() {
             Shop
           </Link>
 
-          <button className="rounded-full border px-4 py-2 hover:bg-gray-50">
-            Cart (0)
-          </button>
+          <Link
+            href="/cart"
+            className="rounded-full border px-4 py-2 hover:bg-gray-50"
+          >
+            Cart ({totalItems})
+          </Link>
         </div>
       </div>
     </header>

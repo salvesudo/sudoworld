@@ -214,10 +214,19 @@ export default function AddProductPage() {
       setTimeout(() => {
         router.push('/admin/products')
       }, 1200)
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+    } catch (err: any) {
       console.error('Supabase error:', err)
+      console.error('Error JSON:', JSON.stringify(err, null, 2))
+      console.error('Error message:', err?.message)
+      console.error('Error details:', err?.details)
+      console.error('Error hint:', err?.hint)
+      console.error('Error code:', err?.code)
+
+      const message =
+        err?.message ||
+        err?.details ||
+        'Something went wrong. Please check the browser console.'
+
       setFormError(message)
       setIsSubmitting(false)
     }

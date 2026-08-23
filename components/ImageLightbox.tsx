@@ -29,12 +29,18 @@ export function ImageLightbox({
   }, [onClose])
 
   return (
+    // No backdrop-blur here on purpose: `backdrop-filter: blur()` across
+    // a full-viewport fixed element is one of the more GPU-expensive CSS
+    // effects, and browsers can recomposite it as the cursor crosses in
+    // and out of the blurred region — visible as flicker right at the
+    // image's edge, worse on weaker GPUs. A solid, slightly more opaque
+    // backdrop gives the same "dimmed page" effect without that cost.
     <div
       role="dialog"
       aria-modal="true"
       aria-label={alt}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/90 p-4 backdrop-blur-sm sm:p-10"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/95 p-4 sm:p-10"
     >
       <button
         type="button"

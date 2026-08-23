@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -14,6 +14,31 @@ type ProductType = 'physical' | 'digital' | 'service'
 type SpecRow = {
   key: string
   value: string
+}
+
+type StagedImage = {
+  id: string
+  file: File
+  previewUrl: string
+  altText: string
+}
+
+const ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]
+const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+
+function isAllowedImageFile(file: File) {
+  if (ALLOWED_IMAGE_MIME_TYPES.includes(file.type)) return true
+
+  // Some browsers/OSes report an empty or non-standard MIME type,
+  // so fall back to checking the file extension.
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return ALLOWED_IMAGE_EXTENSIONS.includes(ext)
 }
 
 function slugify(text: string) {
@@ -103,6 +128,14 @@ export default function AddProductPage() {
     { key: '', value: '' },
   ])
 
+  // Images
+  const [images, setImages] = useState<StagedImage[]>([])
+  const [explicitPrimaryImageId, setExplicitPrimaryImageId] = useState<
+    string | null
+  >(null)
+  const [imageError, setImageError] = useState('')
+  const imagesRef = useRef<StagedImage[]>([])
+
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -136,6 +169,97 @@ export default function AddProductPage() {
 
     loadCategories()
   }, [])
+
+  // Keep a ref of the latest images so the unmount cleanup below can
+  // revoke every preview URL, not just whatever existed at mount time.
+  useEffect(() => {
+    imagesRef.current = images
+  }, [images])
+
+  // Revoke all preview object URLs when the page unmounts.
+  useEffect(() => {
+    return () => {
+      imagesRef.current.forEach((img) => URL.revokeObjectURL(img.previewUrl))
+    }
+  }, [])
+
+  // primaryImageId is only an explicit user override (or null). The image
+  // that's actually treated as primary is derived below on every render,
+  // so it always falls back to the first image without needing an effect.
+  const primaryImageId =
+    explicitPrimaryImageId &&
+    images.some((img) => img.id === explicitPrimaryImageId)
+      ? explicitPrimaryImageId
+      : (images[0]?.id ?? null)
+
+  function handleImageFilesSelected(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return
+
+    const files = Array.from(fileList)
+    const rejected: string[] = []
+    const accepted: StagedImage[] = []
+
+    for (const file of files) {
+      if (!isAllowedImageFile(file)) {
+        rejected.push(`${file.name} (unsupported file type)`)
+        continue
+      }
+
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        rejected.push(`${file.name} (larger than 10 MB)`)
+        continue
+      }
+
+      accepted.push({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        altText: file.name.replace(/\.[^./\\]+$/, ''),
+      })
+    }
+
+    setImageError(
+      rejected.length > 0 ? `Skipped: ${rejected.join(', ')}` : ''
+    )
+
+    if (accepted.length > 0) {
+      setImages((prev) => [...prev, ...accepted])
+    }
+  }
+
+  function removeImage(id: string) {
+    setImages((prev) => {
+      const target = prev.find((img) => img.id === id)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((img) => img.id !== id)
+    })
+  }
+
+  function setPrimaryImage(id: string) {
+    setExplicitPrimaryImageId(id)
+  }
+
+  function moveImage(id: string, direction: 'up' | 'down') {
+    setImages((prev) => {
+      const index = prev.findIndex((img) => img.id === id)
+      if (index === -1) return prev
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev
+
+      const next = [...prev]
+      const temp = next[index]
+      next[index] = next[targetIndex]
+      next[targetIndex] = temp
+      return next
+    })
+  }
+
+  function updateImageAltText(id: string, altText: string) {
+    setImages((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, altText } : img))
+    )
+  }
 
   function updateSpecRow(
     index: number,
@@ -372,6 +496,80 @@ export default function AddProductPage() {
 
       console.log('Product created successfully:', data)
 
+      if (!data) {
+        throw new Error(
+          'Product was created, but no product data was returned.'
+        )
+      }
+
+      const productId = data.id
+
+      /*
+       * Upload staged images (if any) now that we have a product ID,
+       * then record them in public.product_images. Images are uploaded
+       * to Storage first — the binary never touches Postgres.
+       */
+      if (images.length > 0) {
+        const primaryId = primaryImageId
+        const imageRows: {
+          product_id: number
+          image_url: string
+          alt_text: string | null
+          display_order: number
+          is_primary: boolean
+        }[] = []
+
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i]
+          const extension =
+            img.file.name.split('.').pop()?.toLowerCase() || 'jpg'
+          const storagePath = `${productId}/${i}-${Date.now()}.${extension}`
+
+          const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(storagePath, img.file, {
+              contentType: img.file.type || undefined,
+            })
+
+          if (uploadError) {
+            console.error('========== IMAGE UPLOAD ERROR ==========')
+            console.error('File:', img.file.name)
+            console.error('Error:', uploadError)
+            console.error('===========================================')
+
+            throw new Error(
+              `Product was created, but image "${img.file.name}" failed to upload: ${getSupabaseErrorMessage(uploadError)}`
+            )
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(storagePath)
+
+          imageRows.push({
+            product_id: productId,
+            image_url: publicUrlData.publicUrl,
+            alt_text: img.altText.trim() || name.trim(),
+            display_order: i,
+            is_primary: img.id === primaryId,
+          })
+        }
+
+        const { error: imagesError } = await supabase
+          .from('product_images')
+          .insert(imageRows)
+
+        if (imagesError) {
+          console.error('========== PRODUCT IMAGES INSERT ERROR ==========')
+          console.error('Error:', imagesError)
+          console.error('=====================================================')
+
+          throw new Error(
+            `Product was created and images uploaded, but saving the image records failed: ${getSupabaseErrorMessage(imagesError)}`
+          )
+        }
+      }
+
       setSuccessMessage(
         'Product created successfully. Redirecting...'
       )
@@ -592,6 +790,108 @@ export default function AddProductPage() {
               placeholder="Full product description..."
             />
           </div>
+        </div>
+
+        {/* IMAGES */}
+        <div className={sectionClass}>
+          <p className={sectionTitleClass}>
+            Images
+          </p>
+
+          <label htmlFor="images" className={labelClass}>
+            Product images
+          </label>
+
+          <input
+            id="images"
+            type="file"
+            multiple
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            onChange={(e) => {
+              handleImageFilesSelected(e.target.files)
+              e.target.value = ''
+            }}
+            className={fieldClass}
+          />
+
+          <p className="mt-1 text-xs text-gray-500">
+            JPG, JPEG, PNG or WEBP. Max 10 MB per image. You can select
+            multiple files at once.
+          </p>
+
+          {imageError && (
+            <p className="mt-2 text-sm text-red-600">{imageError}</p>
+          )}
+
+          {images.length > 0 && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {images.map((img, index) => (
+                <div key={img.id} className="rounded-xl border p-3">
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.previewUrl}
+                      alt={img.altText || img.file.name}
+                      className="h-36 w-full rounded-lg object-cover"
+                    />
+
+                    {primaryImageId === img.id && (
+                      <span className="absolute left-2 top-2 rounded-full bg-black px-2 py-0.5 text-xs font-medium text-white">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={img.altText}
+                    onChange={(e) =>
+                      updateImageAltText(img.id, e.target.value)
+                    }
+                    placeholder="Alt text"
+                    className="mt-3 w-full rounded-lg border px-3 py-2 text-xs outline-none focus:border-black"
+                  />
+
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPrimaryImage(img.id)}
+                      disabled={primaryImageId === img.id}
+                      className="rounded-full border px-3 py-1 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                    >
+                      Set primary
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => moveImage(img.id, 'up')}
+                      disabled={index === 0}
+                      className="rounded-full border px-3 py-1 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                    >
+                      ↑ Up
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => moveImage(img.id, 'down')}
+                      disabled={index === images.length - 1}
+                      className="rounded-full border px-3 py-1 font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                    >
+                      ↓ Down
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => removeImage(img.id)}
+                      className="rounded-full border border-red-200 px-3 py-1 font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* PRICING */}

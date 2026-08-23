@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Warm boutique palette — SudoWorld brand */
+  --background: #faf3e8;
+  --foreground: #2a2420;
+
+  --color-cream: #faf3e8;
+  --color-cream-dark: #f0e4cf;
+  --color-charcoal: #2a2420;
+  --color-charcoal-soft: #5b5147;
+  --color-terracotta: #c1602e;
+  --color-terracotta-dark: #a04e24;
+  --color-terracotta-light: #f3e0d2;
+  --color-beige: #ead9be;
+  --color-beige-dark: #ddc49f;
+  --color-sage: #8c9b7b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-cream: var(--color-cream);
+  --color-cream-dark: var(--color-cream-dark);
+  --color-charcoal: var(--color-charcoal);
+  --color-charcoal-soft: var(--color-charcoal-soft);
+  --color-terracotta: var(--color-terracotta);
+  --color-terracotta-dark: var(--color-terracotta-dark);
+  --color-terracotta-light: var(--color-terracotta-light);
+  --color-beige: var(--color-beige);
+  --color-beige-dark: var(--color-beige-dark);
+  --color-sage: var(--color-sage);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-fraunces);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Subtle, shared fade-in used across storefront sections */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+
+/* Visible, accessible focus ring across the storefront (buttons/links) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
 }

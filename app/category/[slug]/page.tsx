@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
+import { SectionHeading } from '@/components/SectionHeading'
 import { ProductCard, type Product } from '@/components/ProductCard'
 
 type Category = {
@@ -61,6 +62,7 @@ export default function CategoryPage() {
           slug,
           short_description,
           price,
+          compare_at_price,
           stock_quantity,
           is_handmade,
           is_customizable,
@@ -98,22 +100,26 @@ export default function CategoryPage() {
   }, [params.slug])
 
   return (
-    <main className="min-h-screen bg-white text-gray-900">
+    <main className="min-h-screen bg-cream text-charcoal">
       <SiteHeader />
 
       {loading && (
-        <div className="py-24 text-center text-gray-500">Loading...</div>
+        <div className="py-24 text-center text-charcoal-soft">
+          Loading...
+        </div>
       )}
 
       {!loading && notFound && (
         <div className="mx-auto max-w-7xl px-6 py-24 text-center">
-          <p className="text-xl font-semibold">Category not found</p>
-          <p className="mt-2 text-gray-500">
+          <p className="font-display text-2xl font-medium">
+            Category not found
+          </p>
+          <p className="mt-2 text-charcoal-soft">
             We couldn&apos;t find that category.
           </p>
           <Link
             href="/"
-            className="mt-6 inline-block rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
+            className="mt-6 inline-block rounded-full bg-charcoal px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta"
           >
             Back to Categories
           </Link>
@@ -122,7 +128,7 @@ export default function CategoryPage() {
 
       {!loading && !notFound && error && (
         <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
+          <div className="rounded-2xl border border-terracotta/30 bg-terracotta-light p-6 text-terracotta-dark">
             <p className="font-semibold">Unable to load this category</p>
             <p className="mt-2 text-sm">{error}</p>
           </div>
@@ -132,21 +138,21 @@ export default function CategoryPage() {
       {!loading && !notFound && !error && category && (
         <>
           {/* Category header */}
-          <section className="bg-gray-50">
-            <div className="mx-auto max-w-7xl px-6 py-16 text-center">
+          <section className="bg-beige/40">
+            <div className="mx-auto max-w-7xl px-6 py-16 text-center sm:py-20">
               <Link
                 href="/"
-                className="text-sm text-gray-500 hover:text-gray-700"
+                className="text-sm text-charcoal-soft hover:text-terracotta"
               >
                 ← Back to Categories
               </Link>
 
-              <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+              <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-charcoal sm:text-5xl">
                 {category.name}
               </h1>
 
               {category.description && (
-                <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+                <p className="mx-auto mt-4 max-w-2xl text-lg text-charcoal-soft">
                   {category.description}
                 </p>
               )}
@@ -154,9 +160,14 @@ export default function CategoryPage() {
           </section>
 
           {/* Products in this category */}
-          <section className="mx-auto max-w-7xl px-6 py-16">
+          <section className="mx-auto max-w-7xl px-6 py-16 sm:py-20">
+            <SectionHeading
+              eyebrow="In this collection"
+              title={`${category.name} Products`}
+            />
+
             {products.length === 0 && (
-              <div className="py-20 text-center text-gray-500">
+              <div className="py-20 text-center text-charcoal-soft">
                 No products in this category yet.
               </div>
             )}

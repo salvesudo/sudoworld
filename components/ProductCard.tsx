@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { useCart } from '@/components/CartProvider'
 
 export type ProductImage = {
@@ -16,6 +18,7 @@ export type Product = {
   slug: string
   short_description: string | null
   price: number
+  compare_at_price?: number | null
   stock_quantity: number
   is_handmade: boolean
   is_customizable: boolean
@@ -41,6 +44,20 @@ export function getPrimaryImage(product: Product): ProductImage | null {
   )[0]
 }
 
+// A branded fallback (gradient + SudoWorld mark) for products with no
+// image yet, instead of a blank box — matches the storefront's warm
+// palette so an unphotographed product still looks intentional.
+function ProductImageFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-beige to-cream-dark">
+      <div className="text-center text-charcoal-soft">
+        <div className="font-display text-3xl">✦</div>
+        <p className="mt-2 text-xs uppercase tracking-widest">SudoWorld</p>
+      </div>
+    </div>
+  )
+}
+
 export function ProductCard({
   product,
   showCategory = true,
@@ -51,6 +68,10 @@ export function ProductCard({
   const primaryImage = getPrimaryImage(product)
   const { addItem } = useCart()
   const [justAdded, setJustAdded] = useState(false)
+
+  const hasDiscount =
+    product.compare_at_price != null &&
+    Number(product.compare_at_price) > Number(product.price)
 
   function handleAddToCart() {
     addItem(
@@ -70,85 +91,110 @@ export function ProductCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-1 hover:shadow-lg">
+    <article className="group overflow-hidden rounded-3xl border border-charcoal/10 bg-white/70 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
       {/* Image */}
-      <div className="relative h-72 bg-gray-100">
+      <Link
+        href={`/product/${product.slug}`}
+        className="relative block h-72 overflow-hidden bg-cream-dark"
+      >
         {primaryImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={primaryImage.image_url}
             alt={primaryImage.alt_text || product.name}
-            className="h-72 w-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-72 items-center justify-center text-center text-gray-400">
-            <div>
-              <div className="text-5xl">✦</div>
-              <p className="mt-3 text-sm">Product Image</p>
-            </div>
-          </div>
+          <ProductImageFallback />
         )}
 
-        {product.is_featured && (
-          <span className="absolute left-3 top-3 rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
-            Featured
-          </span>
-        )}
-      </div>
+        <div className="absolute left-3 top-3 flex flex-col gap-2">
+          {product.is_featured && (
+            <span className="rounded-full bg-charcoal px-3 py-1 text-xs font-medium text-cream">
+              Featured
+            </span>
+          )}
+
+          {hasDiscount && (
+            <span className="rounded-full bg-terracotta px-3 py-1 text-xs font-medium text-cream">
+              Sale
+            </span>
+          )}
+        </div>
+      </Link>
 
       {/* Product information */}
       <div className="p-6">
         {showCategory && product.categories && (
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+          <p className="text-xs font-semibold uppercase tracking-widest text-terracotta">
             {product.categories.name}
           </p>
         )}
 
-        <h3 className="mt-2 text-xl font-semibold">{product.name}</h3>
+        <Link href={`/product/${product.slug}`}>
+          <h3 className="mt-2 font-display text-xl font-medium text-charcoal hover:underline">
+            {product.name}
+          </h3>
+        </Link>
 
-        <p className="mt-2 min-h-12 text-sm leading-6 text-gray-600">
+        <p className="mt-2 min-h-12 text-sm leading-6 text-charcoal-soft">
           {product.short_description}
         </p>
 
         {/* Product badges */}
         <div className="mt-4 flex flex-wrap gap-2">
           {product.is_handmade && (
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">
+            <span className="rounded-full bg-beige px-3 py-1 text-xs text-charcoal-soft">
               Handmade
             </span>
           )}
 
           {product.is_customizable && (
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">
+            <span className="rounded-full bg-beige px-3 py-1 text-xs text-charcoal-soft">
               Customizable
             </span>
           )}
 
           {product.is_diy && (
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs">
+            <span className="rounded-full bg-beige px-3 py-1 text-xs text-charcoal-soft">
               DIY
             </span>
           )}
         </div>
 
-        {/* Price and button */}
-        <div className="mt-6 flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold">
-              ₹{Number(product.price).toLocaleString('en-IN')}
-            </p>
+        {/* Price */}
+        <div className="mt-5 flex items-baseline gap-2">
+          <p className="text-2xl font-bold text-charcoal">
+            ₹{Number(product.price).toLocaleString('en-IN')}
+          </p>
 
-            <p className="mt-1 text-xs text-gray-500">
-              {product.stock_quantity > 0
-                ? `${product.stock_quantity} available`
-                : 'Out of stock'}
+          {hasDiscount && (
+            <p className="text-sm text-charcoal-soft line-through">
+              ₹{Number(product.compare_at_price).toLocaleString('en-IN')}
             </p>
-          </div>
+          )}
+        </div>
+
+        <p className="mt-1 text-xs text-charcoal-soft">
+          {product.stock_quantity > 0
+            ? `${product.stock_quantity} available`
+            : 'Out of stock'}
+        </p>
+
+        {/* Actions */}
+        <div className="mt-5 flex items-center gap-3">
+          <Link
+            href={`/product/${product.slug}`}
+            className="flex-1 rounded-full border border-charcoal/20 px-4 py-2.5 text-center text-sm font-medium text-charcoal transition hover:border-charcoal/40 hover:bg-cream-dark"
+          >
+            View Product
+          </Link>
 
           <button
             onClick={handleAddToCart}
             disabled={product.stock_quantity <= 0}
-            className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="flex-1 rounded-full bg-charcoal px-4 py-2.5 text-sm font-medium text-cream transition hover:bg-terracotta disabled:cursor-not-allowed disabled:bg-charcoal/30"
           >
             {justAdded ? 'Added ✓' : 'Add to Cart'}
           </button>

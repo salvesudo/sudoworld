@@ -26,6 +26,23 @@ type CategoryOption = {
 type StockFilter = 'all' | 'in_stock' | 'out_of_stock'
 type ActiveFilter = 'all' | 'active' | 'inactive'
 
+function getSupabaseErrorMessage(err: any): string {
+  if (!err) return 'Something went wrong.'
+  if (typeof err === 'string') return err
+  if (err.message) return err.message
+  if (err.details) return err.details
+  if (err.hint) return err.hint
+
+  try {
+    const serialized = JSON.stringify(err)
+    if (serialized && serialized !== '{}') return serialized
+  } catch {
+    // Ignore JSON serialization errors.
+  }
+
+  return 'Something went wrong. Check the browser console for details.'
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<CategoryOption[]>([])
@@ -68,15 +85,27 @@ export default function AdminProductsPage() {
       ])
 
       if (productsRes.error) {
-        console.error('Supabase error:', productsRes.error)
-        setError(productsRes.error.message)
+        console.error('========== SUPABASE PRODUCTS ERROR ==========')
+        console.error('Code:', productsRes.error.code)
+        console.error('Message:', productsRes.error.message)
+        console.error('Details:', productsRes.error.details)
+        console.error('Hint:', productsRes.error.hint)
+        console.error('Full error JSON:', JSON.stringify(productsRes.error, null, 2))
+        console.error('===============================================')
+        setError(getSupabaseErrorMessage(productsRes.error))
         setLoading(false)
         return
       }
 
       if (categoriesRes.error) {
-        console.error('Supabase error:', categoriesRes.error)
-        setError(categoriesRes.error.message)
+        console.error('========== SUPABASE CATEGORIES ERROR ==========')
+        console.error('Code:', categoriesRes.error.code)
+        console.error('Message:', categoriesRes.error.message)
+        console.error('Details:', categoriesRes.error.details)
+        console.error('Hint:', categoriesRes.error.hint)
+        console.error('Full error JSON:', JSON.stringify(categoriesRes.error, null, 2))
+        console.error('=================================================')
+        setError(getSupabaseErrorMessage(categoriesRes.error))
         setLoading(false)
         return
       }
@@ -131,8 +160,14 @@ export default function AdminProductsPage() {
       .eq('id', product.id)
 
     if (error) {
-      console.error('Supabase error:', error)
-      setActionError(error.message)
+      console.error('========== SUPABASE ARCHIVE ERROR ==========')
+      console.error('Code:', error.code)
+      console.error('Message:', error.message)
+      console.error('Details:', error.details)
+      console.error('Hint:', error.hint)
+      console.error('Full error JSON:', JSON.stringify(error, null, 2))
+      console.error('==============================================')
+      setActionError(getSupabaseErrorMessage(error))
       setArchivingId(null)
       return
     }

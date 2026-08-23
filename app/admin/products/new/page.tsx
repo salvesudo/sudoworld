@@ -317,7 +317,7 @@ export default function AddProductPage() {
 
         category_id: Number(categoryId),
 
-        product_type: productType,
+        product_type: productType.toUpperCase(),
 
         is_handmade: isHandmade,
         is_customizable: isCustomizable,
@@ -325,19 +325,19 @@ export default function AddProductPage() {
         is_featured: isFeatured,
         is_active: isActive,
 
-        weight: weight.trim()
+        weight_grams: weight.trim()
           ? Number(weight)
           : null,
 
-        length: length.trim()
+        length_cm: length.trim()
           ? Number(length)
           : null,
 
-        width: width.trim()
+        width_cm: width.trim()
           ? Number(width)
           : null,
 
-        height: height.trim()
+        height_cm: height.trim()
           ? Number(height)
           : null,
 

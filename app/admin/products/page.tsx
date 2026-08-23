@@ -9,13 +9,12 @@ type Product = {
   name: string
   slug: string
   sku: string | null
-  image_url: string | null
   price: number
   stock_quantity: number
   is_active: boolean
   is_featured: boolean
   category_id: number | null
-  categories: { id: number; name: string }[]
+  categories: { id: number; name: string } | null
 }
 
 type CategoryOption = {
@@ -68,7 +67,6 @@ export default function AdminProductsPage() {
             name,
             slug,
             sku,
-            image_url,
             price,
             stock_quantity,
             is_active,
@@ -298,18 +296,10 @@ export default function AdminProductsPage() {
                 <tr key={product.id} className="align-middle">
 
                   <td className="px-4 py-3">
-                    {product.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="h-12 w-12 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
-                        ✦
-                      </div>
-                    )}
+                    {/* products has no image column yet (image upload is a later phase) — placeholder for every row */}
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
+                      ✦
+                    </div>
                   </td>
 
                   <td className="px-4 py-3 font-medium text-gray-900">
@@ -317,7 +307,7 @@ export default function AdminProductsPage() {
                   </td>
 
                   <td className="px-4 py-3 text-gray-600">
-                    {product.categories?.[0]?.name ?? '—'}
+                    {product.categories?.name ?? '—'}
                   </td>
 
                   <td className="px-4 py-3 text-gray-600">

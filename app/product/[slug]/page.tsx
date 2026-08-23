@@ -187,7 +187,8 @@ export default function ProductDetailPage() {
                     alt={activeImage.alt_text || product.name}
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"
-                    className="object-cover"
+                    quality={90}
+                    className="object-contain"
                     priority
                   />
 

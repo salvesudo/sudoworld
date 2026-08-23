@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCart } from '@/components/CartProvider'
+import { ImageLightbox } from '@/components/ImageLightbox'
 
 export type ProductImage = {
   image_url: string
@@ -68,6 +69,7 @@ export function ProductCard({
   const primaryImage = getPrimaryImage(product)
   const { addItem } = useCart()
   const [justAdded, setJustAdded] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   const hasDiscount =
     product.compare_at_price != null &&
@@ -93,11 +95,13 @@ export function ProductCard({
   return (
     <article className="group overflow-hidden rounded-3xl border border-charcoal/10 bg-white/70 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
       {/* Image */}
-      <Link
-        href={`/product/${product.slug}`}
-        className="relative block h-72 overflow-hidden bg-cream-dark"
-      >
-        {primaryImage ? (
+      {primaryImage ? (
+        <button
+          type="button"
+          onClick={() => setLightboxOpen(true)}
+          aria-label={`View full image of ${product.name}`}
+          className="relative block h-72 w-full overflow-hidden bg-cream-dark"
+        >
           <Image
             src={primaryImage.image_url}
             alt={primaryImage.alt_text || product.name}
@@ -105,24 +109,46 @@ export function ProductCard({
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover transition duration-500 group-hover:scale-105"
           />
-        ) : (
+
+          <div className="absolute left-3 top-3 flex flex-col gap-2">
+            {product.is_featured && (
+              <span className="rounded-full bg-charcoal px-3 py-1 text-xs font-medium text-cream">
+                Featured
+              </span>
+            )}
+
+            {hasDiscount && (
+              <span className="rounded-full bg-terracotta px-3 py-1 text-xs font-medium text-cream">
+                Sale
+              </span>
+            )}
+          </div>
+
+          {/* Zoom affordance, visible on hover */}
+          <div className="absolute bottom-3 right-3 rounded-full bg-charcoal/70 p-2 text-cream opacity-0 backdrop-blur transition group-hover:opacity-100">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M15.5 15.5 21 21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M10.5 8v5M8 10.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </div>
+        </button>
+      ) : (
+        <Link
+          href={`/product/${product.slug}`}
+          className="relative block h-72 overflow-hidden bg-cream-dark"
+        >
           <ProductImageFallback />
-        )}
+        </Link>
+      )}
 
-        <div className="absolute left-3 top-3 flex flex-col gap-2">
-          {product.is_featured && (
-            <span className="rounded-full bg-charcoal px-3 py-1 text-xs font-medium text-cream">
-              Featured
-            </span>
-          )}
-
-          {hasDiscount && (
-            <span className="rounded-full bg-terracotta px-3 py-1 text-xs font-medium text-cream">
-              Sale
-            </span>
-          )}
-        </div>
-      </Link>
+      {lightboxOpen && primaryImage && (
+        <ImageLightbox
+          src={primaryImage.image_url}
+          alt={primaryImage.alt_text || product.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
 
       {/* Product information */}
       <div className="p-6">

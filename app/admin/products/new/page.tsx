@@ -356,10 +356,23 @@ export default function AddProductPage() {
     }
 
     if (typeof err === 'object') {
-      const { message, details, hint } = err as {
+      const { code, message, details, hint } = err as {
+        code?: string
         message?: string
         details?: string
         hint?: string
+      }
+
+      // 23505 = unique_violation — surface a plain-language message for
+      // the specific constraints admins are likely to hit here, instead
+      // of raw Postgres text.
+      if (code === '23505') {
+        if (message?.includes('products_sku_key')) {
+          return 'This SKU is already used by another product. Please choose a different SKU.'
+        }
+        if (message?.includes('products_slug_key')) {
+          return 'A product with a matching slug already exists. Try a slightly different product name.'
+        }
       }
 
       if (message) return message

@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
 import { useCart } from '@/components/CartProvider'
+import { ImageLightbox } from '@/components/ImageLightbox'
 import type { ProductImage } from '@/components/ProductCard'
 
 type ProductDetail = {
@@ -41,6 +42,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeImageIndex, setActiveImageIndex] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [justAdded, setJustAdded] = useState(false)
 
   useEffect(() => {
@@ -173,8 +175,13 @@ export default function ProductDetailPage() {
           <div className="grid gap-10 lg:grid-cols-2">
             {/* Gallery */}
             <div>
-              <div className="relative h-96 overflow-hidden rounded-3xl bg-cream-dark sm:h-[28rem]">
-                {activeImage ? (
+              {activeImage ? (
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(true)}
+                  aria-label={`View full image of ${product.name}`}
+                  className="group relative block h-96 w-full overflow-hidden rounded-3xl bg-cream-dark sm:h-[28rem]"
+                >
                   <Image
                     src={activeImage.image_url}
                     alt={activeImage.alt_text || product.name}
@@ -183,7 +190,17 @@ export default function ProductDetailPage() {
                     className="object-cover"
                     priority
                   />
-                ) : (
+
+                  <div className="absolute bottom-4 right-4 rounded-full bg-charcoal/70 p-2.5 text-cream opacity-0 backdrop-blur transition group-hover:opacity-100">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+                      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M15.5 15.5 21 21" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      <path d="M10.5 8v5M8 10.5h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                </button>
+              ) : (
+                <div className="relative h-96 overflow-hidden rounded-3xl bg-cream-dark sm:h-[28rem]">
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-beige to-cream-dark text-charcoal-soft">
                     <div className="text-center">
                       <div className="font-display text-4xl">✦</div>
@@ -192,8 +209,16 @@ export default function ProductDetailPage() {
                       </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {lightboxOpen && activeImage && (
+                <ImageLightbox
+                  src={activeImage.image_url}
+                  alt={activeImage.alt_text || product.name}
+                  onClose={() => setLightboxOpen(false)}
+                />
+              )}
 
               {images.length > 1 && (
                 <div className="mt-4 flex gap-3 overflow-x-auto">

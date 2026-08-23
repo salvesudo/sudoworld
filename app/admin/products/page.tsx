@@ -61,7 +61,7 @@ export default function AdminProductsPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
 
-  const [archivingId, setArchivingId] = useState<number | null>(null)
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null)
   const [actionError, setActionError] = useState('')
 
   useEffect(() => {
@@ -149,24 +149,31 @@ export default function AdminProductsPage() {
     })
   }, [products, search, categoryFilter, stockFilter, activeFilter])
 
-  async function handleArchive(product: Product) {
-    if (!product.is_active) return
+  async function handleToggleActive(product: Product) {
+    // Archiving/reactivating both just flip is_active — products are never
+    // hard-deleted, so any existing references (images, future orders,
+    // the product's own URL/slug) stay intact either way.
+    const nextActive = !product.is_active
 
     const confirmed = window.confirm(
-      `Archive "${product.name}"? It will be hidden from the storefront.`
+      nextActive
+        ? `Reactivate "${product.name}"? It will become visible on the storefront again.`
+        : `Archive "${product.name}"? It will be hidden from the storefront.`
     )
     if (!confirmed) return
 
     setActionError('')
-    setArchivingId(product.id)
+    setStatusUpdatingId(product.id)
 
     const { error } = await supabase
       .from('products')
-      .update({ is_active: false })
+      .update({ is_active: nextActive })
       .eq('id', product.id)
 
     if (error) {
-      console.error('========== SUPABASE ARCHIVE ERROR ==========')
+      console.error(
+        `========== SUPABASE ${nextActive ? 'REACTIVATE' : 'ARCHIVE'} ERROR ==========`
+      )
       console.error('Code:', error.code)
       console.error('Message:', error.message)
       console.error('Details:', error.details)
@@ -174,16 +181,16 @@ export default function AdminProductsPage() {
       console.error('Full error JSON:', JSON.stringify(error, null, 2))
       console.error('==============================================')
       setActionError(getSupabaseErrorMessage(error))
-      setArchivingId(null)
+      setStatusUpdatingId(null)
       return
     }
 
     setProducts((prev) =>
       prev.map((p) =>
-        p.id === product.id ? { ...p, is_active: false } : p
+        p.id === product.id ? { ...p, is_active: nextActive } : p
       )
     )
-    setArchivingId(null)
+    setStatusUpdatingId(null)
   }
 
   return (
@@ -370,17 +377,21 @@ export default function AdminProductsPage() {
                       </Link>
 
                       <button
-                        onClick={() => handleArchive(product)}
-                        disabled={
-                          !product.is_active || archivingId === product.id
+                        onClick={() => handleToggleActive(product)}
+                        disabled={statusUpdatingId === product.id}
+                        className={
+                          product.is_active
+                            ? 'font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300'
+                            : 'font-medium text-green-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300'
                         }
-                        className="font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300"
                       >
-                        {archivingId === product.id
-                          ? 'Archiving...'
+                        {statusUpdatingId === product.id
+                          ? product.is_active
+                            ? 'Archiving...'
+                            : 'Reactivating...'
                           : product.is_active
                             ? 'Archive'
-                            : 'Archived'}
+                            : 'Reactivate'}
                       </button>
                     </div>
                   </td>

@@ -52,10 +52,18 @@ export function ImageLightbox({
         </svg>
       </button>
 
-      {/* Stop propagation so clicking the image itself doesn't close it */}
+      {/*
+        Explicit, viewport-derived size (not `h-full` inside a flex
+        parent) so this container has a stable intrinsic size on its own.
+        next/image's `fill` doesn't contribute a size back to its parent,
+        so relying on flex auto-sizing here caused the browser to
+        re-resolve the layout on every hover-triggered repaint — visible
+        as image jitter that only showed up with a mouse (no hover on
+        touch devices, so mobile never triggered it).
+      */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative h-full max-h-[88vh] w-full max-w-5xl"
+        className="relative h-[min(85vh,64rem)] w-[min(90vw,64rem)]"
       >
         <Image
           src={src}

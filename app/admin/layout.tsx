@@ -24,26 +24,49 @@ export default function AdminLayout({
   const isLoginPage = pathname === '/admin/login'
 
   const [checkingSession, setCheckingSession] = useState(true)
+  const [accessDenied, setAccessDenied] = useState(false)
 
   useEffect(() => {
-    // The login page manages its own access — no sidebar, no session gate.
-    if (isLoginPage) {
-      setCheckingSession(false)
-      return
-    }
-
     let active = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    async function checkAccess() {
+      // The login page manages its own access — no sidebar, no session gate.
+      if (isLoginPage) {
+        setCheckingSession(false)
+        return
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession()
       if (!active) return
 
-      if (!data.session) {
+      if (!sessionData.session) {
         router.replace('/admin/login')
         return
       }
 
+      // Being logged in only proves you're *a* Supabase Auth user — it
+      // does not make you an admin. is_admin() is a SECURITY DEFINER RPC
+      // that checks the (client-inaccessible) public.admins table, so a
+      // normal customer account always gets false here.
+      const { data: isAdmin, error } = await supabase.rpc('is_admin')
+      if (!active) return
+
+      if (error) {
+        console.error('========== is_admin() CHECK FAILED ==========')
+        console.error('Error:', error)
+        console.error('================================================')
+      }
+
+      if (error || !isAdmin) {
+        setAccessDenied(true)
+        setCheckingSession(false)
+        return
+      }
+
       setCheckingSession(false)
-    })
+    }
+
+    checkAccess()
 
     return () => {
       active = false
@@ -64,6 +87,26 @@ export default function AdminLayout({
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 text-sm text-gray-500">
         Checking session...
+      </div>
+    )
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 px-6 text-center">
+        <p className="text-lg font-semibold text-gray-900">Access denied</p>
+
+        <p className="max-w-sm text-sm text-gray-500">
+          Your account is signed in, but it doesn&apos;t have admin access to
+          SudoWorld.
+        </p>
+
+        <button
+          onClick={handleLogout}
+          className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
+        >
+          Sign out
+        </button>
       </div>
     )
   }

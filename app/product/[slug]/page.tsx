@@ -25,6 +25,10 @@ type ProductDetail = {
   is_diy: boolean
   is_featured: boolean
   specifications: Record<string, string> | null
+  weight_grams: number | null
+  length_cm: number | null
+  width_cm: number | null
+  height_cm: number | null
   categories: { name: string; slug: string } | null
   product_images: ProductImage[]
 }
@@ -58,6 +62,7 @@ export default function ProductDetailPage() {
           id, name, slug, short_description, description, price,
           compare_at_price, stock_quantity, is_handmade, is_customizable,
           is_diy, is_featured, specifications,
+          weight_grams, length_cm, width_cm, height_cm,
           categories ( name, slug ),
           product_images ( image_url, alt_text, is_primary, display_order )
         `
@@ -114,6 +119,19 @@ export default function ProductDetailPage() {
   const specEntries = product?.specifications
     ? Object.entries(product.specifications)
     : []
+
+  // Build a human-readable size line from whichever dimensions are set
+  // (e.g. "35 × 35 × 4 cm") — skips any that are null rather than
+  // showing "null × null".
+  const dimensionParts = product
+    ? [product.length_cm, product.width_cm, product.height_cm].filter(
+        (v): v is number => v != null
+      )
+    : []
+  const sizeText =
+    dimensionParts.length > 0 ? `${dimensionParts.join(' × ')} cm` : null
+  const weightText =
+    product?.weight_grams != null ? `${product.weight_grams} g` : null
 
   return (
     <main className="min-h-screen bg-cream text-charcoal">
@@ -323,6 +341,34 @@ export default function ProductDetailPage() {
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-charcoal-soft">
                     {product.description}
                   </p>
+                </div>
+              )}
+
+              {(sizeText || weightText) && (
+                <div className="mt-8 border-t border-charcoal/10 pt-8">
+                  <h2 className="font-display text-lg font-medium text-charcoal">
+                    Size
+                  </h2>
+                  <dl className="mt-3 space-y-2 text-sm">
+                    {sizeText && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-charcoal-soft">
+                          Dimensions (L × W × H)
+                        </dt>
+                        <dd className="text-right font-medium text-charcoal">
+                          {sizeText}
+                        </dd>
+                      </div>
+                    )}
+                    {weightText && (
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-charcoal-soft">Weight</dt>
+                        <dd className="text-right font-medium text-charcoal">
+                          {weightText}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
               )}
 

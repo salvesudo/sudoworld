@@ -89,17 +89,26 @@ function Medallion({ tone = '#c9a24b' }: { tone?: string }) {
   )
 }
 
-// A distinct medallion just for the hero overlay — different point/skip
-// values than the category-card Medallion above, so it's a genuinely
-// different curve, not the same pattern reused. Rendered in two passes
-// (a dark halo stroke, then a bright one on top) instead of a CSS blend
-// mode: mix-blend-screen was the actual cause of it reading as faint —
-// screening a bright color onto the moon's mostly-white surface just
-// erases it there. A halo keeps it legible against light AND dark areas.
+// The hero medallion: same curve-stitch geometry as Design 4's Medallion
+// (n=200, points connected every 67th nail) rather than Design 2's own
+// category-card pattern, per request — reused deliberately, not a
+// different curve this time. Rendered in bands of four thread colors
+// (gold, ember, cream, cosmic blue) instead of one, so it reads as a
+// genuine multi-thread piece rather than a single-color motif. Every
+// band still sits on a dark halo stroke first (not a CSS blend mode —
+// mix-blend-screen was the earlier bug: it washes a bright color out
+// against the moon's mostly-white surface), which is what keeps all
+// four colors legible over both bright and dark parts of the photo.
+const HERO_THREADS: { color: string; width: number }[] = [
+  { color: '#f0b23e', width: 0.2 }, // gold
+  { color: '#e14b2e', width: 0.18 }, // ember
+  { color: '#f4ede0', width: 0.16 }, // warm cream
+  { color: '#7f9bdb', width: 0.18 }, // cosmic blue
+]
+
 function HeroMedallion() {
-  const n = 210
-  const skip = 89
-  const paths: string[] = []
+  const n = 200
+  const skip = 67
   const points: [number, number][] = []
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 - Math.PI / 2
@@ -108,25 +117,31 @@ function HeroMedallion() {
       Number((50 + 46 * Math.sin(a)).toFixed(3)),
     ])
   }
+  // Assign each thread to a color band by index (not randomly) so the
+  // four colors interleave evenly around the circle instead of clumping.
+  const bands: string[][] = HERO_THREADS.map(() => [])
   for (let k = 0; k < n; k++) {
     const j = (k * skip) % n
-    paths.push(`M ${points[k][0]} ${points[k][1]} L ${points[j][0]} ${points[j][1]}`)
+    const d = `M ${points[k][0]} ${points[k][1]} L ${points[j][0]} ${points[j][1]}`
+    bands[k % HERO_THREADS.length].push(d)
   }
 
   return (
     <svg viewBox="0 0 100 100" className="h-full w-full">
-      {/* dark halo — keeps the pattern visible over bright moon terrain */}
+      {/* dark halo beneath every thread — keeps all four colors legible over bright moon terrain */}
       <g stroke="#070912" strokeWidth="0.42" opacity="0.55" strokeLinecap="round">
-        {paths.map((d, i) => (
+        {bands.flat().map((d, i) => (
           <path key={'halo' + i} d={d} />
         ))}
       </g>
-      {/* bright pass on top — the actual visible thread color */}
-      <g stroke="#f0b23e" strokeWidth="0.2" opacity="0.95" strokeLinecap="round">
-        {paths.map((d, i) => (
-          <path key={'line' + i} d={d} />
-        ))}
-      </g>
+      {/* bright pass on top — one <g> per thread color */}
+      {HERO_THREADS.map((t, ti) => (
+        <g key={'band' + ti} stroke={t.color} strokeWidth={t.width} opacity="0.95" strokeLinecap="round">
+          {bands[ti].map((d, i) => (
+            <path key={'line' + ti + '-' + i} d={d} />
+          ))}
+        </g>
+      ))}
       {points.map(([x, y], i) => (
         <circle key={'nail' + i} cx={x} cy={y} r="0.45" fill="#fff3d6" opacity="0.9" />
       ))}

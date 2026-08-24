@@ -89,13 +89,13 @@ export function ImageLightbox({
       aria-modal="true"
       aria-label={active.alt}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-charcoal/95 p-4 sm:p-10"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4 sm:p-10"
     >
       <button
         type="button"
         onClick={onClose}
         aria-label="Close full image view"
-        className="absolute right-4 top-4 z-20 rounded-full bg-cream/10 p-3 text-cream transition hover:bg-cream/20"
+        className="absolute right-4 top-4 z-20 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20"
       >
         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
           <path
@@ -116,7 +116,7 @@ export function ImageLightbox({
               goPrev()
             }}
             aria-label="Previous image"
-            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-cream/10 p-3 text-cream transition hover:bg-cream/20 sm:left-4"
+            className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:left-4"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
               <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -129,7 +129,7 @@ export function ImageLightbox({
               goNext()
             }}
             aria-label="Next image"
-            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-cream/10 p-3 text-cream transition hover:bg-cream/20 sm:right-4"
+            className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition hover:bg-white/20 sm:right-4"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

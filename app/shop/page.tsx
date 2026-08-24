@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { SiteHeader } from '@/components/SiteHeader'
-import { SiteFooter } from '@/components/SiteFooter'
+import { CosmicHeader } from '@/components/CosmicHeader'
+import { CosmicFooter } from '@/components/CosmicFooter'
 import { SectionHeading } from '@/components/SectionHeading'
 import { ProductCard, type Product } from '@/components/ProductCard'
 
@@ -72,7 +72,7 @@ function ShopContent() {
       )}
 
       {!loading && error && (
-        <div className="rounded-2xl border border-terracotta/30 bg-terracotta-light p-6 text-terracotta-dark">
+        <div className="rounded-2xl border border-[#e14b2e]/30 bg-[#2a1015] p-6 text-[#f0a58c]">
           <p className="font-semibold">Unable to load products</p>
           <p className="mt-2 text-sm">{error}</p>
         </div>
@@ -99,8 +99,8 @@ function ShopContent() {
 
 export default function ShopPage() {
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <SiteHeader />
+    <main className="min-h-screen bg-cream text-charcoal font-mono">
+      <CosmicHeader />
 
       <Suspense
         fallback={
@@ -112,7 +112,7 @@ export default function ShopPage() {
         <ShopContent />
       </Suspense>
 
-      <SiteFooter />
+      <CosmicFooter />
     </main>
   )
 }

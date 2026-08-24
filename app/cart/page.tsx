@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { SiteHeader } from '@/components/SiteHeader'
-import { SiteFooter } from '@/components/SiteFooter'
+import { CosmicHeader } from '@/components/CosmicHeader'
+import { CosmicFooter } from '@/components/CosmicFooter'
 import { useCart } from '@/components/CartProvider'
 
 export default function CartPage() {
@@ -11,12 +11,12 @@ export default function CartPage() {
     useCart()
 
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <SiteHeader />
+    <main className="min-h-screen bg-cream text-charcoal font-mono">
+      <CosmicHeader />
 
       <section className="mx-auto max-w-4xl px-6 py-16 sm:py-20">
         <div className="mb-10 flex items-center justify-between">
-          <h1 className="font-display text-3xl font-medium">Your Cart</h1>
+          <h1 className="font-display text-3xl italic font-medium">Your Cart</h1>
 
           {items.length > 0 && (
             <button
@@ -29,12 +29,12 @@ export default function CartPage() {
         </div>
 
         {items.length === 0 && (
-          <div className="rounded-3xl border border-charcoal/10 bg-white/60 py-20 text-center">
+          <div className="rounded-3xl border border-cream/10 bg-cream-dark/60 py-20 text-center">
             <p className="text-charcoal-soft">Your cart is empty.</p>
 
             <Link
               href="/shop"
-              className="mt-6 inline-block rounded-full bg-charcoal px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta"
+              className="mt-6 inline-block rounded-full bg-terracotta px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta-dark"
             >
               Browse Products
             </Link>
@@ -43,7 +43,7 @@ export default function CartPage() {
 
         {items.length > 0 && (
           <>
-            <div className="divide-y divide-charcoal/10 rounded-3xl border border-charcoal/10 bg-white/60">
+            <div className="divide-y divide-cream/10 rounded-3xl border border-cream/10 bg-cream-dark/60">
               {items.map((item) => (
                 <div
                   key={item.productId}
@@ -126,7 +126,7 @@ export default function CartPage() {
               <button
                 disabled
                 title="Checkout isn't built yet — this cart only adds/manages items so far."
-                className="cursor-not-allowed rounded-full bg-charcoal/30 px-8 py-3 text-sm font-medium text-cream"
+                className="cursor-not-allowed rounded-full bg-cream-dark px-8 py-3 text-sm font-medium text-charcoal-soft"
               >
                 Checkout (coming soon)
               </button>
@@ -135,7 +135,7 @@ export default function CartPage() {
         )}
       </section>
 
-      <SiteFooter />
+      <CosmicFooter />
     </main>
   )
 }

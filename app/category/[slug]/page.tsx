@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { SiteHeader } from '@/components/SiteHeader'
-import { SiteFooter } from '@/components/SiteFooter'
+import { CosmicHeader } from '@/components/CosmicHeader'
+import { CosmicFooter } from '@/components/CosmicFooter'
 import { SectionHeading } from '@/components/SectionHeading'
 import { ProductCard, type Product } from '@/components/ProductCard'
 
@@ -100,8 +100,8 @@ export default function CategoryPage() {
   }, [params.slug])
 
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <SiteHeader />
+    <main className="min-h-screen bg-cream text-charcoal font-mono">
+      <CosmicHeader />
 
       {loading && (
         <div className="py-24 text-center text-charcoal-soft">
@@ -119,7 +119,7 @@ export default function CategoryPage() {
           </p>
           <Link
             href="/"
-            className="mt-6 inline-block rounded-full bg-charcoal px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta"
+            className="mt-6 inline-block rounded-full bg-terracotta px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta-dark"
           >
             Back to Categories
           </Link>
@@ -128,7 +128,7 @@ export default function CategoryPage() {
 
       {!loading && !notFound && error && (
         <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="rounded-2xl border border-terracotta/30 bg-terracotta-light p-6 text-terracotta-dark">
+          <div className="rounded-2xl border border-[#e14b2e]/30 bg-[#2a1015] p-6 text-[#f0a58c]">
             <p className="font-semibold">Unable to load this category</p>
             <p className="mt-2 text-sm">{error}</p>
           </div>
@@ -187,7 +187,7 @@ export default function CategoryPage() {
         </>
       )}
 
-      <SiteFooter />
+      <CosmicFooter />
     </main>
   )
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { SiteHeader } from '@/components/SiteHeader'
-import { SiteFooter } from '@/components/SiteFooter'
+import { CosmicHeader } from '@/components/CosmicHeader'
+import { CosmicFooter } from '@/components/CosmicFooter'
 import { SectionHeading } from '@/components/SectionHeading'
 
 export const metadata = {
@@ -11,8 +11,8 @@ export const metadata = {
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <SiteHeader />
+    <main className="min-h-screen bg-cream text-charcoal font-mono">
+      <CosmicHeader />
 
       <section className="bg-beige/40">
         <div className="mx-auto max-w-4xl px-6 py-20 text-center sm:py-28">
@@ -65,14 +65,14 @@ export default function AboutPage() {
         <div className="mt-14 text-center">
           <Link
             href="/shop"
-            className="inline-block rounded-full bg-charcoal px-8 py-3.5 text-sm font-medium text-cream transition hover:bg-terracotta"
+            className="inline-block rounded-full bg-terracotta px-8 py-3.5 text-sm font-medium text-cream transition hover:bg-terracotta-dark"
           >
             Shop All Products
           </Link>
         </div>
       </section>
 
-      <SiteFooter />
+      <CosmicFooter />
     </main>
   )
 }

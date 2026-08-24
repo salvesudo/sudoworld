@@ -1,20 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm boutique palette — SudoWorld brand */
-  --background: #faf3e8;
-  --foreground: #2a2420;
+  /* Dark Cosmic palette — SudoWorld brand (previously a warm cream/
+     terracotta boutique palette; replaced site-wide after choosing the
+     "Dark Cosmic" homepage concept from the 5 design previews). Token
+     NAMES are kept as-is so every existing page/component restyles
+     automatically — only the underlying values changed, from warm-light
+     to near-black-and-gold. Each still holds one consistent polarity
+     (cream = the light-toned value, charcoal = the dark-toned value)
+     exactly as before, just inverted from "mostly light page" to
+     "mostly dark page". */
+  --background: #070912;
+  --foreground: #f4f1ea;
 
-  --color-cream: #faf3e8;
-  --color-cream-dark: #f0e4cf;
-  --color-charcoal: #2a2420;
-  --color-charcoal-soft: #5b5147;
-  --color-terracotta: #c1602e;
-  --color-terracotta-dark: #a04e24;
-  --color-terracotta-light: #f3e0d2;
-  --color-beige: #ead9be;
-  --color-beige-dark: #ddc49f;
-  --color-sage: #8c9b7b;
+  --color-cream: #070912;
+  --color-cream-dark: #0d1120;
+  --color-charcoal: #f4f1ea;
+  --color-charcoal-soft: #8890a8;
+  --color-terracotta: #c9a24b;
+  --color-terracotta-dark: #f0b23e;
+  --color-terracotta-light: #12162a;
+  --color-beige: #12162a;
+  --color-beige-dark: #171b30;
+  --color-sage: #7f9bdb;
 }
 
 @theme inline {
@@ -32,9 +40,14 @@
   --color-beige-dark: var(--color-beige-dark);
   --color-sage: var(--color-sage);
 
+  /* --font-sans stays Geist — it's Tailwind's sitewide default font
+     (applied via preflight to every element, admin included), so it must
+     keep admin's original typography untouched. The storefront's IBM
+     Plex Mono body font is applied explicitly via the `font-mono`
+     utility on each storefront page instead of by changing the default. */
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-fraunces);
+  --font-mono: var(--font-ibm-plex-mono);
+  --font-display: var(--font-cormorant);
 }
 
 body {

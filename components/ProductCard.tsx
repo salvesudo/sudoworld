@@ -96,7 +96,7 @@ export function ProductCard({
   }
 
   return (
-    <article className="group overflow-hidden rounded-3xl border border-charcoal/10 bg-white/70 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+    <article className="group overflow-hidden rounded-3xl border border-cream/10 bg-cream-dark/70 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
       {/* Image */}
       {primaryImage ? (
         <button
@@ -228,7 +228,7 @@ export function ProductCard({
           <button
             onClick={handleAddToCart}
             disabled={product.stock_quantity <= 0}
-            className="flex-1 rounded-full bg-charcoal px-4 py-2.5 text-sm font-medium text-cream transition hover:bg-terracotta disabled:cursor-not-allowed disabled:bg-charcoal/30"
+            className="flex-1 rounded-full bg-terracotta px-4 py-2.5 text-sm font-medium text-cream transition hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-charcoal-soft"
           >
             {justAdded ? 'Added ✓' : 'Add to Cart'}
           </button>

@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { SiteHeader } from '@/components/SiteHeader'
-import { SiteFooter } from '@/components/SiteFooter'
+import { CosmicHeader } from '@/components/CosmicHeader'
+import { CosmicFooter } from '@/components/CosmicFooter'
 import { useCart } from '@/components/CartProvider'
 import { ImageLightbox } from '@/components/ImageLightbox'
 import type { ProductImage } from '@/components/ProductCard'
@@ -134,8 +134,8 @@ export default function ProductDetailPage() {
     product?.weight_grams != null ? `${product.weight_grams} g` : null
 
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <SiteHeader />
+    <main className="min-h-screen bg-cream text-charcoal font-mono">
+      <CosmicHeader />
 
       {loading && (
         <div className="py-24 text-center text-charcoal-soft">
@@ -153,7 +153,7 @@ export default function ProductDetailPage() {
           </p>
           <Link
             href="/shop"
-            className="mt-6 inline-block rounded-full bg-charcoal px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta"
+            className="mt-6 inline-block rounded-full bg-terracotta px-6 py-2.5 text-sm font-medium text-cream hover:bg-terracotta-dark"
           >
             Back to Shop
           </Link>
@@ -162,7 +162,7 @@ export default function ProductDetailPage() {
 
       {!loading && !notFound && error && (
         <div className="mx-auto max-w-3xl px-6 py-24">
-          <div className="rounded-2xl border border-terracotta/30 bg-terracotta-light p-6 text-terracotta-dark">
+          <div className="rounded-2xl border border-[#e14b2e]/30 bg-[#2a1015] p-6 text-[#f0a58c]">
             <p className="font-semibold">Unable to load this product</p>
             <p className="mt-2 text-sm">{error}</p>
           </div>
@@ -331,7 +331,7 @@ export default function ProductDetailPage() {
               <button
                 onClick={handleAddToCart}
                 disabled={product.stock_quantity <= 0}
-                className="mt-8 w-full rounded-full bg-charcoal px-6 py-3.5 text-sm font-medium text-cream transition hover:bg-terracotta disabled:cursor-not-allowed disabled:bg-charcoal/30 sm:w-auto sm:px-10"
+                className="mt-8 w-full rounded-full bg-terracotta px-6 py-3.5 text-sm font-medium text-cream transition hover:bg-terracotta-dark disabled:cursor-not-allowed disabled:bg-cream-dark disabled:text-charcoal-soft sm:w-auto sm:px-10"
               >
                 {justAdded ? 'Added ✓' : 'Add to Cart'}
               </button>
@@ -397,7 +397,7 @@ export default function ProductDetailPage() {
         </section>
       )}
 
-      <SiteFooter />
+      <CosmicFooter />
     </main>
   )
 }

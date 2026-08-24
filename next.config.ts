@@ -14,15 +14,29 @@ const supabaseHostname = getSupabaseHostname();
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: supabaseHostname
-      ? [
-          {
-            protocol: "https",
-            hostname: supabaseHostname,
-            pathname: "/storage/v1/object/public/**",
-          },
-        ]
-      : [],
+    remotePatterns: [
+      ...(supabaseHostname
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: supabaseHostname,
+              pathname: "/storage/v1/object/public/**",
+            },
+          ]
+        : []),
+      // Real NASA public-domain Moon photography (design previews) —
+      // NASA material isn't copyrighted unless explicitly noted.
+      {
+        protocol: "https" as const,
+        hostname: "images-assets.nasa.gov",
+      },
+      // Real, correctly-licensed candle photography (design previews) —
+      // Unsplash License: free for commercial use, no attribution required.
+      {
+        protocol: "https" as const,
+        hostname: "images.unsplash.com",
+      },
+    ],
   },
 };
 

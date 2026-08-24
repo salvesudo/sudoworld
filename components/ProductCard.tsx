@@ -67,6 +67,9 @@ export function ProductCard({
   showCategory?: boolean
 }) {
   const primaryImage = getPrimaryImage(product)
+  const sortedImages = [...(product.product_images || [])].sort(
+    (a, b) => a.display_order - b.display_order
+  )
   const { addItem } = useCart()
   const [justAdded, setJustAdded] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -144,8 +147,13 @@ export function ProductCard({
 
       {lightboxOpen && primaryImage && (
         <ImageLightbox
-          src={primaryImage.image_url}
-          alt={primaryImage.alt_text || product.name}
+          images={sortedImages.map((img) => ({
+            src: img.image_url,
+            alt: img.alt_text || product.name,
+          }))}
+          initialIndex={sortedImages.findIndex(
+            (img) => img.image_url === primaryImage.image_url
+          )}
           onClose={() => setLightboxOpen(false)}
         />
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 
 export type LightboxImage = {
@@ -57,9 +58,27 @@ export function ImageLightbox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, hasMultiple])
 
-  if (!active) return null
+  // Mounted-only guard for the portal target (document isn't available
+  // during SSR) — harmless here since this component only ever renders
+  // client-side after a click, but it's the standard safe pattern.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    function markMounted() {
+      setMounted(true)
+    }
+    markMounted()
+  }, [])
 
-  return (
+  if (!active || !mounted) return null
+
+  return createPortal(
+    // Portalled to document.body rather than rendered in place: callers
+    // (e.g. ProductCard) can nest this deep inside elements that gain a
+    // CSS transform on hover (`hover:-translate-y-1` etc.), and a
+    // transform on ANY ancestor of a `position: fixed` element changes
+    // its containing block from the viewport to that ancestor — the
+    // lightbox would render as a small box in the wrong place instead of
+    // covering the screen. Portalling to body sidesteps that entirely.
     // No backdrop-blur here on purpose: `backdrop-filter: blur()` across
     // a full-viewport fixed element is GPU-expensive and can recomposite
     // on every cursor move, visible as flicker right at the image edge.
@@ -181,6 +200,7 @@ export function ImageLightbox({
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   )
 }

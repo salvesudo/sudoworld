@@ -233,8 +233,11 @@ export default function ProductDetailPage() {
 
               {lightboxOpen && activeImage && (
                 <ImageLightbox
-                  src={activeImage.image_url}
-                  alt={activeImage.alt_text || product.name}
+                  images={images.map((img) => ({
+                    src: img.image_url,
+                    alt: img.alt_text || product.name,
+                  }))}
+                  initialIndex={activeImageIndex}
                   onClose={() => setLightboxOpen(false)}
                 />
               )}

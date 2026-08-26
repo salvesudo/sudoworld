@@ -114,7 +114,17 @@ export default function Design2Page() {
                     className="group overflow-hidden rounded-lg border border-white/10 bg-[#0d1120] transition hover:border-[#c9a24b]/50"
                   >
                     <div className="relative h-56 overflow-hidden bg-[#12162a]">
-                      {isCandle ? (
+                      {cat.image_url ? (
+                        // A real photo uploaded for this category (Admin →
+                        // Categories → Image URL) always wins over the
+                        // built-in fallbacks below.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={cat.image_url}
+                          alt={cat.name}
+                          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                        />
+                      ) : isCandle ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={REAL_CANDLE_IMAGE_URL}

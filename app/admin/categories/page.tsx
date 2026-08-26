@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Category = {
@@ -13,6 +13,24 @@ type Category = {
 }
 
 type FormMode = 'closed' | 'create' | 'edit'
+
+const ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]
+const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+
+function isAllowedImageFile(file: File) {
+  if (ALLOWED_IMAGE_MIME_TYPES.includes(file.type)) return true
+
+  // Some browsers/OSes report an empty or non-standard MIME type, so
+  // fall back to checking the file extension.
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return ALLOWED_IMAGE_EXTENSIONS.includes(ext)
+}
 
 function slugify(text: string) {
   return text
@@ -83,8 +101,16 @@ export default function AdminCategoriesPage() {
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
   const [isActive, setIsActive] = useState(true)
+
+  // Image state: `imageUrl` is the already-saved URL (shown as the current
+  // image when editing); `imageFile`/`imagePreviewUrl` hold a newly picked
+  // file staged for upload on submit — mirrors the product form's pattern.
+  const [imageUrl, setImageUrl] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
+  const [imageError, setImageError] = useState('')
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
@@ -93,6 +119,8 @@ export default function AdminCategoriesPage() {
 
   const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null)
   const [actionError, setActionError] = useState('')
+
+  const imageFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function loadCategories() {
@@ -120,11 +148,19 @@ export default function AdminCategoriesPage() {
     loadCategories()
   }, [])
 
+  function resetImageState(existingUrl = '') {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImageUrl(existingUrl)
+    setImageFile(null)
+    setImagePreviewUrl('')
+    setImageError('')
+  }
+
   function openCreateForm() {
     setEditingCategory(null)
     setName('')
     setDescription('')
-    setImageUrl('')
+    resetImageState()
     setIsActive(true)
     setErrors({})
     setFormError('')
@@ -136,7 +172,7 @@ export default function AdminCategoriesPage() {
     setEditingCategory(category)
     setName(category.name)
     setDescription(category.description ?? '')
-    setImageUrl(category.image_url ?? '')
+    resetImageState(category.image_url ?? '')
     setIsActive(category.is_active)
     setErrors({})
     setFormError('')
@@ -147,8 +183,37 @@ export default function AdminCategoriesPage() {
   function closeForm() {
     setFormMode('closed')
     setEditingCategory(null)
+    resetImageState()
     setErrors({})
     setFormError('')
+  }
+
+  function handleImageFileSelected(fileList: FileList | null) {
+    const file = fileList?.[0]
+    if (!file) return
+
+    if (!isAllowedImageFile(file)) {
+      setImageError(`${file.name}: unsupported file type.`)
+      return
+    }
+
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setImageError(`${file.name}: larger than 10 MB.`)
+      return
+    }
+
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImageError('')
+    setImageFile(file)
+    setImagePreviewUrl(URL.createObjectURL(file))
+  }
+
+  function removeImage() {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(null)
+    setImagePreviewUrl('')
+    setImageUrl('')
+    setImageError('')
   }
 
   function validate() {
@@ -171,6 +236,42 @@ export default function AdminCategoriesPage() {
     setIsSubmitting(true)
 
     try {
+      // A newly picked file (staged in state, not yet uploaded) always
+      // wins over whatever image_url the category already had.
+      let finalImageUrl = imageUrl.trim() || null
+
+      if (imageFile) {
+        setIsUploadingImage(true)
+        const slugForPath =
+          formMode === 'edit' && editingCategory
+            ? editingCategory.slug
+            : slugify(name) || 'category'
+        const extension =
+          imageFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const storagePath = `categories/${slugForPath}-${Date.now()}.${extension}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(storagePath, imageFile, {
+            contentType: imageFile.type || undefined,
+          })
+
+        setIsUploadingImage(false)
+
+        if (uploadError) {
+          console.error('========== CATEGORY IMAGE UPLOAD ERROR ==========')
+          console.error('Error:', uploadError)
+          console.error('====================================================')
+          throw uploadError
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(storagePath)
+
+        finalImageUrl = publicUrlData.publicUrl
+      }
+
       if (formMode === 'create') {
         const slug = await generateUniqueCategorySlug(name)
 
@@ -180,7 +281,7 @@ export default function AdminCategoriesPage() {
             name: name.trim(),
             slug,
             description: description.trim() || null,
-            image_url: imageUrl.trim() || null,
+            image_url: finalImageUrl,
             is_active: isActive,
           })
           .select('id, name, slug, description, image_url, is_active')
@@ -208,7 +309,7 @@ export default function AdminCategoriesPage() {
           .update({
             name: name.trim(),
             description: description.trim() || null,
-            image_url: imageUrl.trim() || null,
+            image_url: finalImageUrl,
             is_active: isActive,
           })
           .eq('id', editingCategory.id)
@@ -228,7 +329,7 @@ export default function AdminCategoriesPage() {
                     ...c,
                     name: name.trim(),
                     description: description.trim() || null,
-                    image_url: imageUrl.trim() || null,
+                    image_url: finalImageUrl,
                     is_active: isActive,
                   }
                 : c
@@ -241,10 +342,12 @@ export default function AdminCategoriesPage() {
 
       setFormMode('closed')
       setEditingCategory(null)
+      resetImageState()
     } catch (err: unknown) {
       setFormError(getSupabaseErrorMessage(err))
     } finally {
       setIsSubmitting(false)
+      setIsUploadingImage(false)
     }
   }
 
@@ -389,24 +492,56 @@ export default function AdminCategoriesPage() {
             </div>
 
             <div className="mb-4">
-              <label htmlFor="imageUrl" className={labelClass}>
-                Image URL
-              </label>
+              <label className={labelClass}>Image</label>
+
               <input
-                id="imageUrl"
-                type="text"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className={fieldClass}
-                placeholder="https://..."
+                ref={imageFileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  handleImageFileSelected(e.target.files)
+                  e.target.value = ''
+                }}
               />
-              {imageUrl.trim() && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={imageUrl.trim()}
-                  alt="Preview"
-                  className="mt-3 h-24 w-24 rounded-lg border object-cover"
-                />
+
+              <div className="flex items-center gap-4">
+                {(imagePreviewUrl || imageUrl.trim()) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={imagePreviewUrl || imageUrl.trim()}
+                    alt="Preview"
+                    className="h-24 w-24 rounded-lg border object-cover"
+                  />
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => imageFileInputRef.current?.click()}
+                    className="rounded-full border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Browse...
+                  </button>
+
+                  {(imagePreviewUrl || imageUrl.trim()) && (
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="text-sm font-medium text-red-600 hover:underline"
+                    >
+                      Remove image
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-2 text-xs text-gray-500">
+                JPG, PNG or WEBP, up to 10 MB.
+              </p>
+
+              {imageError && (
+                <p className="mt-1 text-sm text-red-600">{imageError}</p>
               )}
             </div>
 
@@ -434,7 +569,9 @@ export default function AdminCategoriesPage() {
                 className="rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
                 {isSubmitting
-                  ? 'Saving...'
+                  ? isUploadingImage
+                    ? 'Uploading image...'
+                    : 'Saving...'
                   : formMode === 'create'
                     ? 'Create Category'
                     : 'Save Changes'}
